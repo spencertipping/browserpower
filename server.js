@@ -12,6 +12,7 @@
 var waiting_clients = [];
 var waiting_jobs    = [];
 var job_listeners   = [];
+var job_retries     = [];
 var job_identifier  = 0;
 
 // Jobs:
@@ -28,7 +29,7 @@ var job_identifier  = 0;
 var enqueue_job = function (f, x, y, on_result) {
   var job_id = ++job_identifier;
   job_listeners[job_id] = on_result;
-  waiting_jobs.push({id: job_id, f: f.toString(), x: x, y: y});
+  waiting_jobs.push({id: job_id, f: f, x: x, y: y});
   send_jobs_to_clients();
 };
 
@@ -36,8 +37,16 @@ var send_jobs_to_clients = function () {
   while (waiting_clients.length && waiting_jobs.length) {
     var client = waiting_clients.shift();
     var job    = waiting_jobs.shift();
+
+    console.log('Sending job ' + job.id + ' to client');
     client.writeHead(200, {'content-type': 'application/json'});
     client.end(JSON.stringify(job));
+
+    job_retries[job.id] = setTimeout(function () {
+      console.log('Retrying job ' + job.id);
+      enqueue_job(job.f, job.x, job.y, job_listeners[job.id]);
+      job_listeners[job.id] = null;
+    }, 2000);
   }
 };
 
@@ -52,6 +61,8 @@ var with_json_post_data = function (request, callback) {
 var handle_result = function (request, response) {
   waiting_clients.push(response);
   with_json_post_data(request, function (result) {
+    console.log('Received result for job ' + result.id);
+    job_retries[result.id] && clearTimeout(job_retries[result.id]);
     job_listeners[result.id] && job_listeners[result.id](result.r);
     job_listeners[result.id] = null;              // Prevent space leak
   });
@@ -62,6 +73,7 @@ var handle_result = function (request, response) {
 // Users administer the server by POSTing job requests to /run. A job request
 // consists of three parts:
 // {  data: [array of data elements],
+//   first: [initial element for map/reduce],
 //     map: [map function string -- takes one argument x],
 //  reduce: [reduce function string -- takes two arguments x and y]}
 //
@@ -70,25 +82,22 @@ var handle_result = function (request, response) {
 
 var handle_job_request = function (request, response) {
   with_json_post_data(request, function (job_request) {
-    var pending_map_operations = job_request.data.length;
-    var mapped_results         = [];
+    var pending_results = job_request.data.length * 2;
+    var reduction_queue = [job_request.first];
 
     var got_a_result = function (result) {
-      mapped_results.push(result);
-
-      if (pending_map_operations || mapped_results.length > 1)
-        enqueue_job(job_request.reduce, mapped_results.shift(), mapped_results.shift(), got_a_result);
-      else {
+      if (--pending_results) {
+        reduction_queue.push(result);
+        if (reduction_queue.length > 1)
+          enqueue_job(job_request.reduce, reduction_queue.shift(), reduction_queue.shift(), got_a_result);
+      } else {
         response.writeHead(200, {'content-type': 'application/json'});
         response.end(JSON.stringify(result));
       }
     };
 
     job_request.data.forEach(function (x) {
-      enqueue_job(job_request.map, x, null, function (result) {
-        --pending_map_operations;
-        got_a_result(result);
-      });
+      enqueue_job(job_request.map, x, null, got_a_result);
     });
   });
 };
@@ -99,7 +108,7 @@ var handle_job_request = function (request, response) {
 
 var send_client_page = function (client_name) {
   return function (request, response) {
-    require('fs').readFile('clients/' + client_name, 'utf8', function (page) {
+    require('fs').readFile('clients/' + client_name, 'utf8', function (error, page) {
       response.writeHead(200, {'content-type': 'text/html'});
       response.end(page);
     });

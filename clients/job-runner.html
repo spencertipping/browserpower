@@ -4,8 +4,56 @@
     <title>BrowserPower Client</title>
     <script src='http://ajax.googleapis.com/ajax/libs/jquery/1.5.0/jquery.js'></script>
     <script>
-      
+      $(function () {
+        var current_section = null;
+        var log = function (message) {
+          current_section.append($('#log-entry').clone().text(message));
+          return message;
+        };
+
+        log.section = function () {
+          $('#log').append(current_section = $('#log-section').clone());
+        };
+
+        var proper_eval = function (expression) {
+          return (new Function('return ' + expression))();
+        };
+
+        // See server.js for a description of the job format.
+        var run_job = function (job) {
+          log.section();
+          log('Starting job ID = ' + job.id);
+          log('Job function is ' + job.f);
+          log('Job data is ' + JSON.stringify({x: job.x, y: job.y}));
+
+          var start_time = +new Date();
+          var f = proper_eval(job.f);
+          var result = f(job.x, job.y);
+          var end_time = +new Date();
+
+          $.post('/', JSON.stringify({id: job.id, r: result}), run_job);
+          log('Job result is ' + JSON.stringify(result));
+          log('Finished job ID = ' + job.id + ' in ' + (end_time - start_time) + 'ms');
+        };
+
+        // Start listening for jobs.
+        var first_job = function () {return null};
+        run_job({f: first_job.toString(), x: null, y: null, id: -1});
+      });
     </script>
+
+    <style>
+      #log .section {border-left: solid 2px #888; padding-left: 10px; margin-top: 4px}
+      #log .entry {font-family: monospace}
+
+      #templates {display: none}
+    </style>
   </head>
-  <body></body>
+  <body>
+    <div id='templates'>
+      <div id='log-section' class='section'></div>
+      <div id='log-entry' class='entry'></div>
+    </div>
+    <div id='log'></div>
+  </body>
 </html>

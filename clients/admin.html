@@ -1,11 +1,56 @@
 <!doctype html>
 <html>
   <head>
-    <title>BrowserPower Job Admin</title>
+    <title>BrowserPower Job Administration</title>
     <script src='http://ajax.googleapis.com/ajax/libs/jquery/1.5.0/jquery.js'></script>
     <script>
-      
+      $(function () {
+        var initial_map_function    = function (x) {return x};
+        var initial_reduce_function = function (x, y) {return x + y};
+        var initial_data            = [1, 2, 3, 4, 5];
+        var initial_first           = 0;
+
+        $('#map')   .val(initial_map_function.toString());
+        $('#reduce').val(initial_reduce_function.toString());
+        $('#data')  .val(initial_data.map(JSON.stringify).join('\n'));
+        $('#first') .val(JSON.stringify(initial_first));
+
+        $('#compute').click(function () {
+          var map    = $('#map').val();
+          var reduce = $('#reduce').val();
+          var data   = $('#data').val().split(/\n/).map(JSON.parse);
+          var first  = JSON.parse($('#first').val());
+          var start_time = +new Date();
+
+          $.post('/run', JSON.stringify({map: map, reduce: reduce, data: data, first: first}),
+                 function (result) {
+                   var end_time = +new Date();
+                   $('#result').text(result);
+                   $('#timing').text('Completed in ' + (end_time - start_time) + 'ms');
+                 });
+        });
+      });
     </script>
+
+    <style>
+      body {font-family: sans-serif}
+      h1 {text-transform: uppercase; color: #444; font-size: 14pt}
+      textarea, #result {min-width: 250px; min-height: 100px; display: block; border: solid 1px #ccc; font-family: monospace}
+      #result {min-height: 60px}
+
+      .cell {float: left}
+    </style>
   </head>
-  <body></body>
+  <body>
+    <div class='cell'><h1>Map</h1>     <textarea id='map'></textarea></div>
+    <div class='cell'><h1>Reduce</h1>  <textarea id='reduce'></textarea></div>
+    <div class='cell'><h1>Data set</h1><textarea id='data'></textarea></div>
+    <div class='cell'><h1>Initial</h1> <textarea id='first'></textarea></div>
+
+    <div class='cell'>
+      <h1>Result</h1>
+      <button id='compute'>Run</button> <span id='timing'></span>
+      <div id='result'></div>
+    </div>
+  </body>
 </html>
