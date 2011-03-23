@@ -25,7 +25,7 @@
           $.post('/run', JSON.stringify({map: map, reduce: reduce, data: data, first: first}),
                  function (result) {
                    var end_time = +new Date();
-                   $('#result').text(result);
+                   $('#result').text(JSON.stringify(result));
                    $('#timing').text('Completed in ' + (end_time - start_time) + 'ms');
                  });
         });
