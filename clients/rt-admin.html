@@ -1,0 +1,192 @@
+<!doctype html>
+<html>
+  <head>
+    <title>BrowserPower Raytracer Administration</title>
+    <script src='http://ajax.googleapis.com/ajax/libs/jquery/1.5.0/jquery.js'></script>
+    <script>
+      $(function () {
+        var map_function = function (scene) {
+          // Scene has this form (where rgb values are between 0 and 1):
+          // {       pixels: [[x1, y1], [x2, y2], [x3, y3], ...],
+          //        objects: [{p: [x, y, z], r: radius, reflect_color: [r, g, b], diffuse_color: [r, g, b]}, ...],
+          //  light_sources: [{p: [x, y, z], color: [r, g, b]}, ...]}
+
+          var plus  = function (v1, v2, x) {x = x || 1; return [v1[0] + v2[0] * x, v1[1] + v2[1] * x, v1[2] + v2[2] * x]};
+          var times = function (v, x)      {return x.constructor === Number ? [v1[0] * x, v1[1] * x, v1[2] * x] : [v1[0] * x[0], v1[1] * x[1], v1[2] * x[2]]};
+          var unit  = function (v, d)      {d = d || 1; return times(v, d / Math.sqrt(dot(v, v)))};
+          var dot   = function (v1, v2)    {return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2]};
+          var dist2 = function (v1, v2)    {var diff = plus(v1, v2, -1); return dot(diff, diff)};
+
+          var proj  = function (v1, v2)    {return times(v1, dot(v1, v2) / dot(v1, v1))};
+          var orth  = function (v1, v2)    {return plus(v2, proj(v1, v2), -1)};
+
+          var intersection = function (p, d, o) {
+            // o is a sphere, so it has a position p and a radius r.
+            // Ray-sphere intersection from Wikipedia: http://en.wikipedia.org/wiki/Line%E2%80%93sphere_intersection
+            var c_minus_p = plus(o.p, p, -1);
+            var c_dot_d   = dot(c_minus_p, d);
+            var c_dot_c   = dot(c_minus_p, c_minus_p);
+            var r_squared = o.r * o.r;
+            var sqrt_term = c_dot_d * c_dot_d - c_dot_c + r_squared;
+
+            console.log(p, d, o);
+
+            if (sqrt_term > 0) {
+              var sqrt = Math.sqrt(sqrt_term);
+              var s1   = c_dot_d - sqrt;
+              if (s1 <= 0) {
+                var s2 = c_dot_d + sqrt;
+                if (s2 > 0) return {object: o, distance: s2};
+                else        return false;
+              } else {
+                return {object: o, distance: s1};
+              }
+            } else {
+              return false;
+            }
+          };
+
+          var visible_light_sources_from = function (point) {
+            var light_sources = scene.light_sources.map(function (l) {
+              var direction       = plus(l.p, point, -1);
+              var distance        = Math.sqrt(dot(direction, direction));
+              var intersection    = closest_intersection(point, unit(direction));
+              var object_distance = intersection ? intersection.distance : Infinity;
+
+              return object_distance > distance ? {direction: direction, light_source: l} : false;
+            });
+
+            return light_sources.filter(function (x) {return x});
+          };
+
+          var closest_intersection = function (point, direction) {
+            var intersections = scene.objects.map(function (o) {
+              return intersection(point, direction, o);
+            });
+
+            var real_intersections = intersections.filter(function (x) {return x});
+            var closest = real_intersections[0];
+            for (var i = 1, l = real_intersections.length; i < l; ++i)
+              if (real_intersections[i].distance < closest.distance)
+                closest = real_intersections[i];
+
+            return closest;
+          };
+
+          var modified_lambertian_illumination = function (direction, normal, light_source_direction) {
+            // The sine of the viewer-normal angle determines the degree of specularity.
+            // This is an approximation to eggshell-style surfaces comprised of small domes.
+
+            // Because sin^2 + cos^2 = 1, we can solve without using trigonometry:
+
+            var direction_normal_angle = dot(direction, normal);
+            var specularity = 1 - direction_normal_angle * direction_normal_angle;
+
+            var reflection = plus(orth(normal, light_source_direction), proj(normal, light_source_direction), -1);
+            var original_illumination = Math.abs(dot(reflection, direction));
+
+            return Math.pow(original_illumination, specularity);
+          };
+
+          var maximum_trace_depth = 5;
+          var trace = function (point, direction, depth) {
+            if (depth <= 0) return [0, 0, 0];              // Bailout -- too much depth
+
+            var intersection = closest_intersection(point, direction);
+            if (! intersection) return [0, 0, 0];       // Black background
+            else return [1, 1, 1];
+
+            // Compute surface normal (easy because everything is a sphere):
+            var intersection_point = plus(point, direction, intersection.distance);
+            var normal             = unit(plus(intersection_point, intersection.object.p, -1));
+
+            // Color contributed by reflection:
+            var reflected_direction = plus(orth(direction, normal), proj(direction, normal), -1);
+            var reflected_color     = trace(intersection_point, reflected_direction, depth - 1);
+
+            var reflected_total     = times(reflected_color, intersection.object.reflect_color);
+
+            // Color contributed by light source illumination:
+            var visible_light_sources = visible_light_sources_from(point);
+            var light_source_colors = visible_light_sources.map(function (l) {
+              var ls_direction = plus(l.p, intersection_point, -1);
+              return times(l.color, modified_lambertian_illumination(direction, normal, ls_direction));
+            });
+
+            var light_source_total = [0, 0, 0];
+            light_source_colors.forEach(function (c) {
+              light_source_total = plus(light_source_total, c);
+            });
+
+            var diffuse_total = times(light_source_total, intersection.object.diffuse_color);
+
+            return plus(diffuse_total, reflected_total);
+          };
+
+          var viewport_size = {x: 400, y: 400};
+          var pixel_to_ray = function (x, y) {
+            // Assume center at <0, 0, 0> with camera direction <0, 0, 1> and up is <0, -1, 0>.
+            return [x / viewport_size.x + 0.5, -(y / viewport_size.y + 0.5), 1];
+          };
+
+          var colorize = function (pixel) {
+            // Preserve original coordinates, but append color
+            return pixel.concat(trace([0, 0, 0], pixel, maximum_trace_depth));
+          };
+
+          return scene.pixels.map(colorize);
+        };
+
+        var reduce_function = function (xs, ys) {
+          return xs.concat(ys);
+        };
+
+        var paint_pixels_from = function (result) {
+          // Finished pixels are of the form [x, y, r, g, b].
+          // The result is an array of these pixels.
+          var canvas     = $('canvas')[0];
+          var w          = canvas.width;
+          var h          = canvas.height;
+          var context    = canvas.getContext('2d');
+          var image_data = context.getImageData(0, 0, w, h);
+
+          var clip = function (n) {
+            return n > 255 ? 255 : n < 0 ? 0 : n;
+          };
+
+          result.forEach(function (pixel) {
+            if (pixel[2] + pixel[3] + pixel[4] !== 0) console.log('Painting pixel ' + pixel);
+            var offset = (pixel[0] + pixel[1] * h) * 4;
+            image_data.data[offset]     = clip(pixel[2] * 256 >>> 0);
+            image_data.data[offset + 1] = clip(pixel[3] * 256 >>> 0);
+            image_data.data[offset + 2] = clip(pixel[4] * 256 >>> 0);
+            image_data.data[offset + 3] = 255;
+          });
+
+          context.putImageData(image_data, 0, 0);
+        };
+
+        var pixel_array = [];
+        for (var x = 0; x < 400; ++x)
+          for (var y = 0; y < 400; ++y)
+            pixel_array.push([x, y]);
+
+        var objects = [
+          {p: [10, 20, 40], r: 10, reflect_color: [0.4, 0.4, 0.4], diffuse_color: [1, 0.6, 0.4]},
+          {p: [10, -10, 40], r: 17, reflect_color: [0.4, 0.4, 0.4], diffuse_color: [0.6, 1, 0.4]},
+          {p: [20, 0, 40], r: 3, reflect_color: [0.4, 0.4, 0.4], diffuse_color: [0.4, 0.6, 1]}];
+
+        var light_sources = [
+          {p: [0, 0, 0], color: [1, 1, 1]}];
+
+        $('#run').click(function () {
+          paint_pixels_from(map_function({pixels: pixel_array, objects: objects, light_sources: light_sources}));
+        });
+      });
+    </script>
+  </head>
+  <body>
+    <canvas width='400' height='400'></canvas>
+    <button id='run'>Run</button>
+  </body>
+</html>

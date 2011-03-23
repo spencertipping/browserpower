@@ -123,8 +123,11 @@ var send_404 = function (request, response) {
 // Main server loop:
 require('http').createServer(function (request, response) {
   var signature = request.method + ' ' + request.url;
-  var handler   = signature === 'GET /'      ? send_client_page('job-runner.html') :
-                  signature === 'GET /admin' ? send_client_page('admin.html') :
+  var handler   = signature === 'GET /'         ? send_client_page('job-runner.html') :
+                  signature === 'GET /admin'    ? send_client_page('admin.html') :
+                  signature === 'GET /rt'       ? send_client_page('rt-job-runner.html') :
+                  signature === 'GET /rt-admin' ? send_client_page('rt-admin.html') :
+
                   signature === 'POST /'     ? handle_result :
                   signature === 'POST /run'  ? handle_job_request :
                                                send_404;
