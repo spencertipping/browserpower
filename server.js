@@ -99,7 +99,7 @@ var handle_job_request = function (request, response) {
 
 var send_client_page = function (client_name) {
   return function (request, response) {
-    require('fs').readFile('client/' + client_name + '.html', 'utf8', function (page) {
+    require('fs').readFile('clients/' + client_name, 'utf8', function (page) {
       response.writeHead(200, {'content-type': 'text/html'});
       response.end(page);
     });
@@ -114,8 +114,8 @@ var send_404 = function (request, response) {
 // Main server loop:
 require('http').createServer(function (request, response) {
   var signature = request.method + ' ' + request.url;
-  var handler   = signature === 'GET /'      ? send_client_page('job-runner') :
-                  signature === 'GET /admin' ? send_client_page('admin') :
+  var handler   = signature === 'GET /'      ? send_client_page('job-runner.html') :
+                  signature === 'GET /admin' ? send_client_page('admin.html') :
                   signature === 'POST /'     ? handle_result :
                   signature === 'POST /run'  ? handle_job_request :
                                                send_404;
