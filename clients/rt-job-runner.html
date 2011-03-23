@@ -4,7 +4,6 @@
     <title>BrowserPower Raytracing Client</title>
     <script src='http://ajax.googleapis.com/ajax/libs/jquery/1.5.0/jquery.js'></script>
     <script>
-      // This function will be called either by map or by reduce.
       var paint_pixels_from = function (result) {
         // Finished pixels are of the form [x, y, r, g, b].
         // The result is an array of these pixels.
@@ -34,6 +33,7 @@
           var f = proper_eval(job.f);
           var result = f(job.x, job.y);
           $.post('/', JSON.stringify({id: job.id, r: result}), run_job);
+          paint_pixels_from(result);
         };
 
         // Start listening for jobs.

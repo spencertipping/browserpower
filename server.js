@@ -132,4 +132,4 @@ require('http').createServer(function (request, response) {
                   signature === 'POST /run'  ? handle_job_request :
                                                send_404;
   handler(request, response);
-}).listen(8080, '0.0.0.0');
+}).listen(8080);
