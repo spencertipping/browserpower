@@ -6,7 +6,7 @@
     <script src='http://spencertipping.com/caterwaul/caterwaul.js'></script>
     <script>
       $(function () {
-        var map_function = caterwaul(function (scene) {
+        var map_function = function (scene) {
           // Scene has this form (where rgb values are between 0 and 1):
           // {       pixels: [[x1, y1], [x2, y2], [x3, y3], ...],
           //        objects: [{p: [x, y, z], r: radius, reflect_color: [r, g, b], diffuse_color: [r, g, b]}, ...],
@@ -167,7 +167,7 @@
           };
 
           return scene.pixels.map(colorize);
-        });
+        };
 
         var reduce_function = function (xs, ys) {
           return xs.concat(ys);
@@ -207,8 +207,10 @@
         for (var i = 5; i < 35; ++i)
           light_sources.push({p: [Math.sin(i / 2) * i * i / 8, Math.cos(i / 2) * i * i / 8, -4], color: [0.04, 0.04, 0.04]});
 
-        var block_size = 40;
+        var block_size = 20;
         var slices     = 4;
+
+        var compact_map_function = caterwaul.parse(map_function).serialize();
 
         $('#run').click(function () {
           var pixel_block = function (xbase) {
@@ -228,7 +230,7 @@
             });
 
             // Using caterwaul to reduce function size
-            $.post('/run', JSON.stringify({data: jobs, map: map_function.toString(), reduce: reduce_function.toString(), first: []}),
+            $.post('/run', JSON.stringify({data: jobs, map: compact_map_function, reduce: reduce_function.toString(), first: []}),
                    function (result) {
                      paint_pixels_from(result);
                    });
