@@ -127,9 +127,14 @@
             return unit([x / viewport_size.x - 0.5, -(y / viewport_size.y - 0.5), 1]);
           };
 
+          var clip = function (n) {
+            return n > 255 ? 255 : n < 0 ? 0 : n;
+          };
+
           var colorize = function (pixel) {
             // Preserve original coordinates, but append color
-            return pixel.concat(trace([0, 0, 0], pixel_to_direction(pixel[0], pixel[1]), maximum_trace_depth));
+            var color = trace([0, 0, 0], pixel_to_direction(pixel[0], pixel[1]), maximum_trace_depth);
+            return pixel.concat([color[0] * 256 >>> 0, color[1] * 256 >>> 0, color[2] * 256 >>> 0].map(clip));
           };
 
           return scene.pixels.map(colorize);
@@ -148,15 +153,11 @@
           var context    = canvas.getContext('2d');
           var image_data = context.getImageData(0, 0, w, h);
 
-          var clip = function (n) {
-            return n > 255 ? 255 : n < 0 ? 0 : n;
-          };
-
           result.forEach(function (pixel) {
             var offset = (pixel[0] + pixel[1] * h) * 4;
-            image_data.data[offset]     = clip(pixel[2] * 256 >>> 0);
-            image_data.data[offset + 1] = clip(pixel[3] * 256 >>> 0);
-            image_data.data[offset + 2] = clip(pixel[4] * 256 >>> 0);
+            image_data.data[offset]     = pixel[2];
+            image_data.data[offset + 1] = pixel[3];
+            image_data.data[offset + 2] = pixel[4];
             image_data.data[offset + 3] = 255;
           });
 
@@ -167,27 +168,34 @@
           {p: [0, -3, 10], r: 2, reflect_color: [0.4, 0.4, 0.4], diffuse_color: [0.8, 0.7, 0.3]},
           {p: [4, 4, 20],  r: 3, reflect_color: [0.4, 0.4, 0.4], diffuse_color: [1, 0.6, 0.4]},
           {p: [6, -2, 20], r: 4, reflect_color: [0.4, 0.4, 0.4], diffuse_color: [0.6, 1, 0.4]},
-          {p: [-2, 0, 20],   r: 3, reflect_color: [0.4, 0.4, 0.4], diffuse_color: [0.4, 0.6, 1]}];
+          {p: [-2, 0, 20], r: 3, reflect_color: [0.4, 0.4, 0.4], diffuse_color: [0.4, 0.6, 1]}];
+
+        for (var i = -2; i <= 2; ++i)
+          for (var j = -2; j <= 2; ++j)
+            objects.push({p: [i << 3, j << 3, 36], r: 4, reflect_color: [0.4, 0.4, 0.4], diffuse_color: [0.4, 0.4, 0.4]});
 
         var light_sources = [];
 
         for (var i = 0; i < 10; ++i)
           light_sources.push({p: [i % 3 * 40 - 20, i / 3 * 40 - 20, -4], color: [0.1, 0.1, 0.1]});
 
+        var block_size = 4;
+        var slices     = 50;
+
         $('#run').click(function () {
-          var pixel_block = function (x) {
-            var pixel_arrays = [];
-            var stop         = x + 10;
-            for (; x < stop; ++x) {
-              pixel_arrays.push([]);
-              for (var y = 0; y < 400; ++y)
-                pixel_arrays[pixel_arrays.length - 1].push([x, y]);
+          var pixel_block = function (xbase) {
+            var result = [];
+            for (var slice = 0; slice < slices; ++slice) {
+              result.push([]);
+              for (var x = xbase; x < xbase + block_size; ++x)
+                for (var y = slice * 400 / slices; y < (slice + 1) * 400 / slices; ++y)
+                  result[result.length - 1].push([x, y]);
             }
-            return pixel_arrays;
+            return result;
           };
 
-          for (var block = 0; block < 40; ++block) {
-            var jobs = pixel_block(block * 10).map(function (pixels) {
+          for (var block = 0; block < 400 / block_size; ++block) {
+            var jobs = pixel_block(block * block_size).map(function (pixels) {
               return {pixels: pixels, objects: objects, light_sources: light_sources};
             });
 

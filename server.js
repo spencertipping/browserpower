@@ -46,7 +46,7 @@ var send_jobs_to_clients = function () {
       console.log('Retrying job ' + job.id);
       enqueue_job(job.f, job.x, job.y, job_listeners[job.id]);
       job_listeners[job.id] = null;
-    }, 2000);
+    }, 10000);
   }
 };
 
