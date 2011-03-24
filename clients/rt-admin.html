@@ -6,7 +6,7 @@
     <script src='http://spencertipping.com/caterwaul/caterwaul.js'></script>
     <script>
       $(function () {
-        var map_function = function (scene) {
+        var map_function = caterwaul(function (scene) {
           // Scene has this form (where rgb values are between 0 and 1):
           // {       pixels: [[x1, y1], [x2, y2], [x3, y3], ...],
           //        objects: [{p: [x, y, z], r: radius, reflect_color: [r, g, b], diffuse_color: [r, g, b]}, ...],
@@ -91,12 +91,13 @@
             return specular_illumination + isotropic_illumination;
           };
 
-          var maximum_trace_depth = 4;
+          var maximum_trace_depth = 6;
+          var background_color    = [0.1, 0.1, 0.1];
           var trace = function (point, direction, depth) {
-            if (depth <= 0) return [0, 0, 0];              // Bailout -- too much depth
+            if (depth <= 0) return background_color;            // Bailout -- too much depth
 
             var intersection = closest_intersection(point, direction);
-            if (! intersection) return [0, 0, 0];       // Black background
+            if (! intersection) return background_color;        // No intersections -- hits background
 
             // Compute surface normal (easy because everything is a sphere):
             var intersection_point = plus(point, direction, intersection.distance);
@@ -104,8 +105,10 @@
 
             // Color contributed by reflection:
             var reflected_direction = unit(reflection(normal, direction));
+            var ray_normal_cosine   = dot(normal, reflected_direction);
+            var ray_normal_sine     = 1 - ray_normal_cosine * ray_normal_cosine;
             var reflected_color     = trace(intersection_point, reflected_direction, depth - 1);
-            var reflected_total     = times(reflected_color, intersection.object.reflect_color);
+            var reflected_total     = times(reflected_color, times(intersection.object.reflect_color, ray_normal_sine));
 
             // Color contributed by light source illumination:
             var visible_light_sources = visible_light_sources_from(intersection_point);
@@ -143,7 +146,7 @@
           };
 
           return scene.pixels.map(colorize);
-        };
+        });
 
         var reduce_function = function (xs, ys) {
           return xs.concat(ys);
@@ -170,14 +173,14 @@
         };
 
         var objects = [
-          {p: [0, -3, 10], r: 2, reflect_color: [0.4, 0.4, 0.4], diffuse_color: [0.8, 0.7, 0.3]},
-          {p: [4, 4, 14],  r: 3, reflect_color: [0.4, 0.4, 0.4], diffuse_color: [1, 0.6, 0.4]},
-          {p: [6, -2, 19], r: 4, reflect_color: [0.4, 0.4, 0.4], diffuse_color: [0.6, 1, 0.4]},
-          {p: [-2, 0, 13], r: 3, reflect_color: [0.4, 0.4, 0.4], diffuse_color: [0.4, 0.6, 1]}];
+          {p: [0, -3, 10], r: 2, reflect_color: [0.9, 0.9, 0.9], diffuse_color: [0.8, 0.7, 0.3]},
+          {p: [4, 4, 14],  r: 3, reflect_color: [0.9, 0.9, 0.9], diffuse_color: [1, 0.6, 0.4]},
+          {p: [6, -2, 19], r: 4, reflect_color: [0.9, 0.9, 0.9], diffuse_color: [0.6, 1, 0.4]},
+          {p: [-2, 0, 13], r: 3, reflect_color: [0.9, 0.9, 0.9], diffuse_color: [0.4, 0.6, 1]}];
 
         for (var i = -2; i <= 2; i += 2)
           for (var j = -2; j <= 2; j += 2)
-            objects.push({p: [i << 3, j << 3, 36], r: 4, reflect_color: [0.7, 0.7, 0.7], diffuse_color: [0.2, 0.2, 0.2]});
+            objects.push({p: [i * 5, j * 5, 24], r: 4, reflect_color: [1, 1, 1], diffuse_color: [0.3, 0.3, 0.3]});
 
         var light_sources = [];
         for (var i = 0; i < 3; ++i)
@@ -205,7 +208,7 @@
             });
 
             // Using caterwaul to reduce function size
-            $.post('/run', JSON.stringify({data: jobs, map: caterwaul(map_function).toString(), reduce: caterwaul(reduce_function).toString(), first: []}),
+            $.post('/run', JSON.stringify({data: jobs, map: map_function.toString(), reduce: reduce_function.toString(), first: []}),
                    function (result) {
                      paint_pixels_from(result);
                    });

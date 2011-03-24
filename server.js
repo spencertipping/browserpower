@@ -26,10 +26,13 @@ var job_identifier  = 0;
 // {id: number,
 //   r: result of function}
 
-var enqueue_job = function (f, x, y, on_result) {
+var enqueue_job = function (f, x, y, on_result, retry) {
   var job_id = ++job_identifier;
   job_listeners[job_id] = on_result;
-  waiting_jobs.push({id: job_id, f: f, x: x, y: y});
+
+  // Unshift to preserve job order. This matters for the reduce step.
+  retry ? waiting_jobs.unshift({id: job_id, f: f, x: x, y: y}) :
+          waiting_jobs.push   ({id: job_id, f: f, x: x, y: y});
   send_jobs_to_clients();
 };
 
@@ -45,7 +48,7 @@ var send_jobs_to_clients = function () {
 
     job_retries[job.id] = setTimeout(function () {
       console.log('Retrying job ' + job.id);
-      enqueue_job(job.f, job.x, job.y, job_listeners[job.id]);
+      enqueue_job(job.f, job.x, job.y, job_listeners[job.id], true);
       job_listeners[job.id] = null;
     }, 30000);
   }
