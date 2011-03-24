@@ -37,16 +37,17 @@ var send_jobs_to_clients = function () {
   while (waiting_clients.length && waiting_jobs.length) {
     var client = waiting_clients.shift();
     var job    = waiting_jobs.shift();
+    var json   = JSON.stringify(job);
 
-    console.log('Sending job ' + job.id + ' to client');
+    console.log('Sending job ' + job.id + ' to client (' + json.length + ' characters)');
     client.writeHead(200, {'content-type': 'application/json'});
-    client.end(JSON.stringify(job));
+    client.end(json);
 
     job_retries[job.id] = setTimeout(function () {
       console.log('Retrying job ' + job.id);
       enqueue_job(job.f, job.x, job.y, job_listeners[job.id]);
       job_listeners[job.id] = null;
-    }, 10000);
+    }, 30000);
   }
 };
 

@@ -3,6 +3,7 @@
   <head>
     <title>BrowserPower Raytracer Administration</title>
     <script src='http://ajax.googleapis.com/ajax/libs/jquery/1.5.0/jquery.js'></script>
+    <script src='http://spencertipping.com/caterwaul/caterwaul.js'></script>
     <script>
       $(function () {
         var map_function = function (scene) {
@@ -81,7 +82,8 @@
           var cosine_illumination = function (direction, normal, light_source_direction) {
             var reflected_direction    = unit(reflection(normal, light_source_direction));
 
-            var isotropic_illumination = Math.abs(dot(direction, normal) * dot(reflected_direction, normal));
+            var isotropic_illumination = Math.abs(dot(direction, normal) * dot(reflected_direction, normal)) / 2 +
+                                         Math.abs(dot(direction, normal) + dot(reflected_direction, normal)) / 4;
             var specular_illumination  = dot(reflected_direction, direction);
 
             if (specular_illumination < 0) specular_illumination = 0;
@@ -133,7 +135,10 @@
 
           var colorize = function (pixel) {
             // Preserve original coordinates, but append color
-            var color = trace([0, 0, 0], pixel_to_direction(pixel[0], pixel[1]), maximum_trace_depth);
+            var color = plus(plus(times(trace([0, 0, 0], pixel_to_direction(pixel[0],       pixel[1]),       maximum_trace_depth), 0.25),
+                                  times(trace([0, 0, 0], pixel_to_direction(pixel[0] + 0.5, pixel[1]),       maximum_trace_depth), 0.25)),
+                             plus(times(trace([0, 0, 0], pixel_to_direction(pixel[0],       pixel[1] + 0.5), maximum_trace_depth), 0.25),
+                                  times(trace([0, 0, 0], pixel_to_direction(pixel[0] + 0.5, pixel[1] + 0.5), maximum_trace_depth), 0.25)));
             return pixel.concat([color[0] * 256 >>> 0, color[1] * 256 >>> 0, color[2] * 256 >>> 0].map(clip));
           };
 
@@ -166,21 +171,21 @@
 
         var objects = [
           {p: [0, -3, 10], r: 2, reflect_color: [0.4, 0.4, 0.4], diffuse_color: [0.8, 0.7, 0.3]},
-          {p: [4, 4, 20],  r: 3, reflect_color: [0.4, 0.4, 0.4], diffuse_color: [1, 0.6, 0.4]},
-          {p: [6, -2, 20], r: 4, reflect_color: [0.4, 0.4, 0.4], diffuse_color: [0.6, 1, 0.4]},
-          {p: [-2, 0, 20], r: 3, reflect_color: [0.4, 0.4, 0.4], diffuse_color: [0.4, 0.6, 1]}];
+          {p: [4, 4, 14],  r: 3, reflect_color: [0.4, 0.4, 0.4], diffuse_color: [1, 0.6, 0.4]},
+          {p: [6, -2, 19], r: 4, reflect_color: [0.4, 0.4, 0.4], diffuse_color: [0.6, 1, 0.4]},
+          {p: [-2, 0, 13], r: 3, reflect_color: [0.4, 0.4, 0.4], diffuse_color: [0.4, 0.6, 1]}];
 
-        for (var i = -2; i <= 2; ++i)
-          for (var j = -2; j <= 2; ++j)
-            objects.push({p: [i << 3, j << 3, 36], r: 4, reflect_color: [0.4, 0.4, 0.4], diffuse_color: [0.4, 0.4, 0.4]});
+        for (var i = -2; i <= 2; i += 2)
+          for (var j = -2; j <= 2; j += 2)
+            objects.push({p: [i << 3, j << 3, 36], r: 4, reflect_color: [0.7, 0.7, 0.7], diffuse_color: [0.2, 0.2, 0.2]});
 
         var light_sources = [];
+        for (var i = 0; i < 3; ++i)
+          for (var j = 0; j < 3; ++j)
+            light_sources.push({p: [i * 30 - 20, j * 30 - 20, -4], color: [0.1, 0.1, 0.1]});
 
-        for (var i = 0; i < 10; ++i)
-          light_sources.push({p: [i % 3 * 40 - 20, i / 3 * 40 - 20, -4], color: [0.1, 0.1, 0.1]});
-
-        var block_size = 4;
-        var slices     = 50;
+        var block_size = 40;
+        var slices     = 4;
 
         $('#run').click(function () {
           var pixel_block = function (xbase) {
@@ -199,7 +204,8 @@
               return {pixels: pixels, objects: objects, light_sources: light_sources};
             });
 
-            $.post('/run', JSON.stringify({data: jobs, map: map_function.toString(), reduce: reduce_function.toString(), first: []}),
+            // Using caterwaul to reduce function size
+            $.post('/run', JSON.stringify({data: jobs, map: caterwaul(map_function).toString(), reduce: caterwaul(reduce_function).toString(), first: []}),
                    function (result) {
                      paint_pixels_from(result);
                    });
