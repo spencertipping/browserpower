@@ -126,10 +126,12 @@
             return plus(diffuse_total, reflected_total);
           };
 
-          var viewport_size = {x: 400, y: 400};
+          var viewport_size = 400;
+          var viewport_width = 600;
+          var viewport_height = 400;
           var pixel_to_direction = function (x, y) {
             // Assume center at <0, 0, 0> with camera direction <0, 0, 1> and up is <0, -1, 0>.
-            return unit([x / viewport_size.x - 0.5, -(y / viewport_size.y - 0.5), 1]);
+            return unit([(x - viewport_width / 2) / viewport_size, -((y - viewport_height / 2) / viewport_size), 1]);
           };
 
           var clip = function (n) {
@@ -162,7 +164,7 @@
           var image_data = context.getImageData(0, 0, w, h);
 
           result.forEach(function (pixel) {
-            var offset = (pixel[0] + pixel[1] * h) * 4;
+            var offset = (pixel[0] + pixel[1] * w) * 4;
             image_data.data[offset]     = pixel[2];
             image_data.data[offset + 1] = pixel[3];
             image_data.data[offset + 2] = pixel[4];
@@ -202,7 +204,7 @@
             return result;
           };
 
-          for (var block = 0; block < 400 / block_size; ++block) {
+          for (var block = 0; block < 600 / block_size; ++block) {
             var jobs = pixel_block(block * block_size).map(function (pixels) {
               return {pixels: pixels, objects: objects, light_sources: light_sources};
             });
@@ -218,7 +220,7 @@
     </script>
   </head>
   <body>
-    <canvas width='400' height='400'></canvas>
+    <canvas width='600' height='400'></canvas>
     <button id='run'>Run</button>
   </body>
 </html>

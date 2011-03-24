@@ -18,7 +18,7 @@
         };
 
         result.forEach(function (pixel) {
-          var offset = (pixel[0] + pixel[1] * h) * 4;
+          var offset = (pixel[0] + pixel[1] * w) * 4;
           image_data.data[offset]     = pixel[2];
           image_data.data[offset + 1] = pixel[3];
           image_data.data[offset + 2] = pixel[4];
@@ -47,6 +47,6 @@
     </script>
   </head>
   <body>
-    <canvas width='400' height='400'></canvas>
+    <canvas width='600' height='400'></canvas>
   </body>
 </html>
