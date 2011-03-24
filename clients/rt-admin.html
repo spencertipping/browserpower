@@ -82,6 +82,7 @@
           var cosine_illumination = function (direction, normal, light_source_direction) {
             var reflected_direction    = unit(reflection(normal, light_source_direction));
 
+            // Spencer's hacked-together anisotropic illumination function (not physically accurate)
             var isotropic_illumination = Math.abs(dot(direction, normal) * dot(reflected_direction, normal)) / 2 +
                                          Math.abs(dot(direction, normal) + dot(reflected_direction, normal)) / 4;
             var specular_illumination  = dot(reflected_direction, direction);
@@ -89,6 +90,15 @@
             if (specular_illumination < 0) specular_illumination = 0;
 
             return specular_illumination + isotropic_illumination;
+          };
+
+          var specular_illumination = function (direction, normal, light_source_direction) {
+            // Phong-style reflected-view to an exponent
+            var reflected_direction = unit(reflection(normal, light_source_direction));
+            var cosine              = dot(normal, direction);
+            var sine                = 1.0 - cosine * cosine;
+            var coincidence         = Math.abs(dot(direction, reflected_direction));
+            return Math.pow(coincidence, 100 + sine * 1900) * (0.5 + sine * 0.5);
           };
 
           var maximum_trace_depth = 6;
@@ -111,19 +121,29 @@
             var reflected_total     = times(reflected_color, times(intersection.object.reflect_color, ray_normal_sine));
 
             // Color contributed by light source illumination:
-            var visible_light_sources = visible_light_sources_from(intersection_point);
-            var light_source_colors = visible_light_sources.map(function (l) {
-              return times(l.light_source.color, cosine_illumination(direction, normal, l.direction));
+            var visible_light_sources        = visible_light_sources_from(intersection_point);
+            var light_source_diffuse_colors  = visible_light_sources.map(function (l) {
+              return times(l.light_source.color, cosine_illumination  (direction, normal, l.direction));
             });
 
-            var light_source_total = [0, 0, 0];
-            light_source_colors.forEach(function (c) {
-              light_source_total = plus(light_source_total, c);
+            var light_source_specular_colors = visible_light_sources.map(function (l) {
+              return times(l.light_source.color, specular_illumination(direction, normal, l.direction));
             });
 
-            var diffuse_total = times(light_source_total, intersection.object.diffuse_color);
+            var light_source_diffuse_total = [0, 0, 0];
+            light_source_diffuse_colors.forEach(function (c) {
+              light_source_diffuse_total = plus(light_source_diffuse_total, c);
+            });
 
-            return plus(diffuse_total, reflected_total);
+            var light_source_specular_total = [0, 0, 0];
+            light_source_specular_colors.forEach(function (c) {
+              light_source_specular_total = plus(light_source_specular_total, c);
+            });
+
+            var diffuse_total = times(light_source_diffuse_total, intersection.object.diffuse_color);
+            var specular_total = times(light_source_specular_total, 23);
+
+            return plus(specular_total, plus(diffuse_total, reflected_total));
           };
 
           var viewport_size = 400;
@@ -185,9 +205,8 @@
             objects.push({p: [i * 5, j * 5, 24], r: 4, reflect_color: [1, 1, 1], diffuse_color: [0.3, 0.3, 0.3]});
 
         var light_sources = [];
-        for (var i = 0; i < 3; ++i)
-          for (var j = 0; j < 3; ++j)
-            light_sources.push({p: [i * 30 - 20, j * 30 - 20, -4], color: [0.1, 0.1, 0.1]});
+        for (var i = 5; i < 35; ++i)
+          light_sources.push({p: [Math.sin(i / 2) * i * i / 8, Math.cos(i / 2) * i * i / 8, -4], color: [0.04, 0.04, 0.04]});
 
         var block_size = 40;
         var slices     = 4;

@@ -36,13 +36,17 @@
         var run_job = function (job) {
           var f = proper_eval(job.f);
           var result = f(job.x, job.y);
-          $.post('/', JSON.stringify({id: job.id, r: result}), run_job);
+          $.post('/', JSON.stringify({id: job.id, r: result}), run_job).error(connect);
           result && paint_pixels_from(result);
         };
 
-        // Start listening for jobs.
-        var first_job = function () {return null};
-        run_job({f: first_job.toString(), x: null, y: null, id: -1});
+        // Start listening for jobs. Automatically establish a new connection after some time.
+        var connect = function () {
+          var first_job = function () {return null};
+          run_job({f: first_job.toString(), x: null, y: null, id: -1});
+        };
+
+        connect();
       });
     </script>
   </head>
