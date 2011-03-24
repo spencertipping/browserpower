@@ -40,10 +40,12 @@
           result && paint_pixels_from(result);
         };
 
-        // Start listening for jobs. Automatically establish a new connection after some time.
+        // Start listening for jobs.
         var connect = function () {
-          var first_job = function () {return null};
-          run_job({f: first_job.toString(), x: null, y: null, id: -1});
+          setTimeout(function () {
+            var first_job = function () {return null};
+            run_job({f: first_job.toString(), x: null, y: null, id: -1});
+          }, 1000);
         };
 
         connect();

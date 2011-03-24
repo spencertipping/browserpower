@@ -83,8 +83,7 @@
             var reflected_direction    = unit(reflection(normal, light_source_direction));
 
             // Spencer's hacked-together anisotropic illumination function (not physically accurate)
-            var isotropic_illumination = Math.abs(dot(direction, normal) * dot(reflected_direction, normal)) / 2 +
-                                         Math.abs(dot(direction, normal) + dot(reflected_direction, normal)) / 4;
+            var isotropic_illumination = Math.abs(dot(direction, normal) * dot(reflected_direction, normal));
             var specular_illumination  = dot(reflected_direction, direction);
 
             if (specular_illumination < 0) specular_illumination = 0;
