@@ -1,0 +1,30 @@
+#!/bin/bash
+
+# Step 1. Get a C++ baseline.
+make ray-sphere ray-sphere-long
+echo c++ ray-sphere baseline:
+time ./ray-sphere
+
+# Step 2. Various node.js versions.
+echo node.js without inlining:
+time node ray-sphere-factored.js
+
+echo node.js with inlined dot:
+time node ray-sphere-inlined-dot.js
+
+echo node.js with inlined sqrt:
+time node ray-sphere-inlined-sqrt.js
+
+echo node.js with inlined dot and sqrt:
+time node ray-sphere-inlined-dot-sqrt.js
+
+echo node.js fully inlined and flattened:
+time node ray-sphere.js
+
+# Step 3. Long-running C++ benchmark.
+echo c++ steady-state baseline:
+time ./ray-sphere-long
+
+# Step 4. Long-running fully inlined node benchmark.
+echo node.js fully inlined and flattened steady-state:
+time node ray-sphere-long.js

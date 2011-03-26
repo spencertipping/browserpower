@@ -1,0 +1,9 @@
+This is a series of microbenchmarks to determine how efficient V8 is relative
+to C++. Normally I would rely on the Benchmarks game [1] for such things, but
+it imposes various rules such as disallowing loop unrolling. I'm willing to
+consider manually unrolling loops if I can get decent performance from the
+browser.
+
+Most likely this directory will be of little interest to most people.
+
+[1] http://shootout.alioth.debian.org
