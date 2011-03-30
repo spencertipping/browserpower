@@ -1,8 +1,9 @@
 // Inlined like crazy. The goal is to find the limit of Javascript numerical
 // performance on optimally-unboxed structures.
 
-var epsilon        = 1.0e-8;
 var total_distance = 0.0;
+
+var epsilon        = 1.0e-8;
 
 var ray_sx         = 1.0;
 var ray_sy         = 2.0;
@@ -274,4 +275,8 @@ for (var i = 0; i < 12500000; ++i) {
   // End single iteration
 }
 
+/*(function () {
+var l = typeof console === 'undefined' ? print : function (x) {console.log(x)};
+l(total_distance);
+})();*/
 console.log(total_distance);
