@@ -3,7 +3,6 @@
   <head>
     <title>BrowserPower Raytracer Administration</title>
     <script src='http://ajax.googleapis.com/ajax/libs/jquery/1.5.0/jquery.js'></script>
-    <script src='http://spencertipping.com/caterwaul/caterwaul.js'></script>
     <script>
       $(function () {
         var map_function = function (scene) {
@@ -210,8 +209,6 @@
         var block_size = 5;
         var slices     = 8;
 
-        var compact_map_function = caterwaul.parse(map_function).serialize();
-
         $('#run').click(function () {
           var pixel_block = function (xbase) {
             var result = [];
@@ -229,8 +226,7 @@
               return {pixels: pixels, objects: objects, light_sources: light_sources};
             });
 
-            // Using caterwaul to reduce function size
-            $.post('/run', JSON.stringify({data: jobs, map: compact_map_function, reduce: reduce_function.toString(), first: []}),
+            $.post('/run', JSON.stringify({data: jobs, map: map_function.toString(), reduce: reduce_function.toString(), first: []}),
                    function (result) {
                      paint_pixels_from(result);
                    });
